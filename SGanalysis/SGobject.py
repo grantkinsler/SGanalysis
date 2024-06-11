@@ -617,7 +617,8 @@ class SGobject:
         ax.set_ylabel("Y")
         plt.show()
 
-    def plot_polygon_and_points(self, identifier, id_field='object_id', gene_names=None,annotate=True):
+    def plot_polygon_and_points(self, identifier, id_field='object_id', gene_names=None,annotate=True,image_scale=1.0,
+                                interior_marker='o',exterior_marker='x',color_map=None):
         if self.gdf is None or self.assigned_points_gdf is None:
             print("Error: Ensure both gdf and assigned_points_gdf are loaded.")
             return
@@ -631,8 +632,8 @@ class SGobject:
         first_polygon_geometry = polygon_gdf.geometry.iloc[0]
 
         minx, miny, maxx, maxy = first_polygon_geometry.bounds
-        dx = (maxx - minx) * 0.5
-        dy = (maxy - miny) * 0.5
+        dx = (maxx - minx) * 0.5 * image_scale
+        dy = (maxy - miny) * 0.5 * image_scale
         expanded_bbox = box(minx - dx, miny - dy, maxx + dx, maxy + dy)
 
         other_polygons = self.gdf[self.gdf.geometry.intersects(expanded_bbox) & (self.gdf[id_field] != identifier)]
@@ -655,7 +656,14 @@ class SGobject:
 
         # Generate a unique color for each name
         unique_names = points_within_bbox['name'].unique()
-        color_map = {name: plt.cm.tab20(i % 20) for i, name in enumerate(unique_names)}
+        # sort by the order of the gene names if it exists
+        if gene_names is not None:
+            unique_names = sorted(unique_names, key=lambda x: gene_names.index(x))
+
+        if color_map is None:
+            color_map = {name: plt.cm.tab20(i % 20) for i, name in enumerate(unique_names)}
+        # else:
+
 
         # Plot points, label them, and use consistent colors for names
         for name, group in points_within_bbox.groupby('name'):
@@ -664,11 +672,11 @@ class SGobject:
             
             # Plot interior points with 'o' marker style
             if not interior_points.empty:
-                ax.scatter(interior_points.geometry.x, interior_points.geometry.y, marker='o', s=50, edgecolor='black', color=color_map[name])
+                ax.scatter(interior_points.geometry.x, interior_points.geometry.y, marker=interior_marker, s=50, edgecolor='black', color=color_map[name])
             
             # Plot exterior points with 'x' marker style
             if not exterior_points.empty:
-                ax.scatter(exterior_points.geometry.x, exterior_points.geometry.y, marker='x', s=50, color=color_map[name])
+                ax.scatter(exterior_points.geometry.x, exterior_points.geometry.y, marker=exterior_marker, s=50, color=color_map[name])
             
             if annotate:
                 # Labeling remains the same for all points
